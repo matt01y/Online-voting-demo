@@ -16,7 +16,7 @@ cargo run
 ### Client
 The (user / client) can (log in / register) with the following request:
 ```bash
-curl --data '{"e_id":64, "public_key":"aaaaa"}' --header 'Content-Type: application/json' --request POST 127.0.0.1:7878/login
+curl --data '{"e_id":"00164", "public_key":"aaaaa"}' --header 'Content-Type: application/json' --request POST 127.0.0.1:7878/login
 ```
 In which they fill in their eID and public key in the respective fields. In the demo the eID is a "unique" number representing
 their identity. The public key is the key they use to sign their votes.
