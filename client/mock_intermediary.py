@@ -11,7 +11,7 @@ async def init():
         parties = json.loads("\n".join(f.readlines()))
 
     return {
-        "auth_server": {"host": "127.0.0.1", "port": 7000},
+        "auth_server": {"host": "127.0.0.1", "port": 7878},
         "backend_key": "",
         "intermediary_key": "",
         "parties": parties
