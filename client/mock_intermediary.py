@@ -18,7 +18,6 @@ async def init():
     return {
         "auth_server": {"host": "127.0.0.1", "port": 7878},
         "backend_key": "",
-        "intermediary_key": "",
         "parties": parties
     }
 

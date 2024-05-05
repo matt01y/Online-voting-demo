@@ -6,13 +6,11 @@ def init_connection(host: str, port: int) -> dict:
     response = req.get(f"http://{host}:{port}/init").json()
     auth_server = response["auth_server"]
     backend_key = response["backend_key"]
-    intermediary_key = response["intermediary_key"]
     parties = response["parties"]["politicians"]
 
     return {
         "auth_server": auth_server,
         "backend_key": backend_key,
-        "intermediary_key": intermediary_key,
         "parties": parties
     }
 
@@ -86,4 +84,4 @@ if __name__ == '__main__':
     voter_id = authenticate(data["auth_server"]["host"], data["auth_server"]["port"], get_user_data())
 
     user_vote = user_vote(data["parties"])
-    send_vote(user_vote, intermediary["host"], intermediary["port"])
+    send_vote(voter_id, user_vote, intermediary["host"], intermediary["port"])

@@ -10,7 +10,6 @@ request to the intermediary on **intermediary ip**/init. The client expects the 
     "host": "host ip of auth server",
     "port": port number of auth server as a positive integer
   }
-  "intermediary key": "public key of intermediary",
   "backend key": "public key of backend",
   "parties": [
     {
