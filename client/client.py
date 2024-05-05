@@ -58,6 +58,23 @@ def user_vote(parties: list[dict[str, str]]) -> tuple[str, str] | None:
             print("[ERROR]: could not cast the input to a number")
 
 
+def send_vote(vote_id: int, vote: tuple[str, str] | None, host: str, port: int) -> None:
+    # (vote_id, sign(vote_id, backend_key(nonce, vote)))
+    if vote is None:
+        vote_json = {
+            "name": None,
+            "party": None
+        }
+    else:
+        vote_json = {
+            "name": vote[0],
+            "party": vote[1]
+        }
+    response = req.post(f"http://{host}:{port}/vote", json=vote_json)
+    if response.status_code != 200:
+        print(f"[ERROR]: {response.status_code} - {response.text}")
+
+
 if __name__ == '__main__':
     # take the first entry as for proof of concept, in a real application, load balancing will be performed
     config = load_config("./client_config.json")
@@ -69,4 +86,4 @@ if __name__ == '__main__':
     voter_id = authenticate(data["auth_server"]["host"], data["auth_server"]["port"], get_user_data())
 
     user_vote = user_vote(data["parties"])
-    print(user_vote)
+    send_vote(user_vote, intermediary["host"], intermediary["port"])
