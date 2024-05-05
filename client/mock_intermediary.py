@@ -16,3 +16,7 @@ async def init():
         "intermediary_key": "",
         "parties": parties
     }
+
+@app.post("/vote")
+async def vote(user_vote: tuple[str, str]):
+    print(user_vote)

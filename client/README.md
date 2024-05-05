@@ -27,6 +27,7 @@ request to the intermediary on **intermediary ip**/init. The client expects the 
 The client depends on:
 * requests: this package makes it easier to make get/post/... requests to a URL
 * json: to parse the config file
+* python-gnupg: for the encryption part
 * [DEBUG]: fastapi, this is only used for the debug server to test out the client
 
 ## Usage
