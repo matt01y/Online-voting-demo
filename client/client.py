@@ -88,11 +88,10 @@ if __name__ == '__main__':
 
     key_gen_data = gpg.gen_key_input(key_type="RSA", key_length=2048, no_protection=True)
     key = gpg.gen_key(key_gen_data)
-    # print(key.)
 
     user_data = {
         "e_id": "BE-63963937393",
-        "public_key": "heyditiseenkey:)"
+        "public_key": gpg.export_keys(key.fingerprint)
     }
 
     # contact the intermediary, result will be list of parties and people, and ip of auth server
