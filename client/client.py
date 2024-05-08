@@ -1,9 +1,12 @@
 import requests as req
 import json
+import gnupg
+import os
+import shutil
 
 
-def init_connection(host: str, port: int) -> dict:
-    response = req.get(f"http://{host}:{port}/init").json()
+def init_connection(address: str) -> dict:
+    response = req.get(f"{address}/init").json()
     auth_server = response["auth_server"]
     backend_key = response["backend_key"]
     parties = response["parties"]["politicians"]
@@ -29,13 +32,6 @@ def load_config(path: str) -> dict:
     return config_data
 
 
-def get_user_data():
-    return {
-        "e_id": "BE-878",
-        "public_key": "888888888"
-    }
-
-
 def user_vote(parties: list[dict[str, str]]) -> tuple[str, str] | None:
     parties_sorted = sorted(parties, key=lambda p: p["party"])
     print(f"{'Nr':^5} {'Name':^25} Party")
@@ -56,7 +52,8 @@ def user_vote(parties: list[dict[str, str]]) -> tuple[str, str] | None:
             print("[ERROR]: could not cast the input to a number")
 
 
-def send_vote(vote_id: int, vote: tuple[str, str] | None, host: str, port: int) -> None:
+def send_vote(vote_id: int, vote: tuple[str, str] | None, address: str, user_key, backend_key,
+              encryptor: gnupg.GPG) -> None:
     # (vote_id, sign(vote_id, backend_key(nonce, vote)))
     if vote is None:
         vote_json = {
@@ -68,20 +65,44 @@ def send_vote(vote_id: int, vote: tuple[str, str] | None, host: str, port: int) 
             "name": vote[0],
             "party": vote[1]
         }
-    response = req.post(f"http://{host}:{port}/vote", json=vote_json)
+
+    signed = encryptor.sign(json.dumps(vote_json))
+    print(signed)
+    response = req.post(f"{address}/vote", data=signed.data)
     if response.status_code != 200:
         print(f"[ERROR]: {response.status_code} - {response.text}")
 
 
 if __name__ == '__main__':
+    path = os.path.join(os.getcwd(), "tempkeys")
+
+    if os.path.exists(path):
+        shutil.rmtree(path)
+
+    os.mkdir(path)
+    gpg = gnupg.GPG(gnupghome=path)
+
     # take the first entry as for proof of concept, in a real application, load balancing will be performed
     config = load_config("./client_config.json")
     intermediary = config["intermediaries"][0]
 
+    key_gen_data = gpg.gen_key_input(key_type="RSA", key_length=2048, no_protection=True)
+    key = gpg.gen_key(key_gen_data)
+    # print(key.)
+
+    user_data = {
+        "e_id": "BE-63963937393",
+        "public_key": "heyditiseenkey:)"
+    }
+
     # contact the intermediary, result will be list of parties and people, and ip of auth server
     # the public keys of the backend server and intermediary server
-    data = init_connection(intermediary["host"], intermediary["port"])
-    voter_id = authenticate(data["auth_server"]["host"], data["auth_server"]["port"], get_user_data())
+    intermediary_address = f"http://{intermediary['host']}:{intermediary['port']}"
+    data = init_connection(intermediary_address)
+    voter_id = authenticate(data["auth_server"]["host"], data["auth_server"]["port"], user_data)
 
     user_vote = user_vote(data["parties"])
-    send_vote(voter_id, user_vote, intermediary["host"], intermediary["port"])
+    send_vote(voter_id, user_vote, intermediary_address, key, backend_key=data["backend_key"], encryptor=gpg)
+
+    gpg.delete_keys(key.fingerprint, secret=True, passphrase="")
+    shutil.rmtree(path)
