@@ -67,8 +67,9 @@ def send_vote(vote_id: int, vote: tuple[str, str] | None, address: str, user_key
         }
 
     signed = encryptor.sign(json.dumps(vote_json))
-    print(signed)
-    response = req.post(f"{address}/vote", data=signed.data)
+    # print(f"signed: {signed}")
+    # print(f"vote: {vote_json}")
+    response = req.post(f"{address}/vote", json=vote_json)
     if response.status_code != 200:
         print(f"[ERROR]: {response.status_code} - {response.text}")
 
