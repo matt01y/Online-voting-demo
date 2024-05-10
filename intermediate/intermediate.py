@@ -3,6 +3,8 @@ import sqlite3
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+import random
+
 app = FastAPI(title="Intermediary server")
 
 def create_sqlite_database(filename):
@@ -10,7 +12,7 @@ def create_sqlite_database(filename):
     conn = None
     sql_statements = [ 
         """CREATE TABLE IF NOT EXISTS votes
-                (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                (voter_id INTEGER PRIMARY KEY,
                 name TEXT,
                 party TEXT);"""]
     try:
@@ -60,15 +62,52 @@ async def vote(user_vote: Vote):
 
     print(user_vote)
 
-    # Insert the vote into the database
-    cursor.execute("INSERT INTO votes (name, party) VALUES (?, ?)", (user_vote.name, user_vote.party))
-    conn.commit()
+    voter_id = random.randint(0,999_999_999) # TODO make this the real voter id i need to get in
 
-    # Fetch all votes from the database
-    cursor.execute("SELECT * FROM votes")
-    all_votes = cursor.fetchall()
-    print("All votes in the database:")
-    for vote in all_votes:
+        # Fetch vote(s) from the database with the given voter_id
+    cursor.execute("SELECT * FROM votes WHERE voter_id = ?", (voter_id,))
+    votes_with_id = cursor.fetchall()
+
+    # Check if any votes were found with the given voter_id
+    if not votes_with_id:
+        # No votes found with the given voter_id
+        # Insert the vote into the database
+        cursor.execute("INSERT INTO votes (voter_id, name, party) VALUES (?, ?, ?)", (voter_id, user_vote.name, user_vote.party))
+        conn.commit()
+
+        # Fetch all votes from the database
+        cursor.execute("SELECT * FROM votes")
+        all_votes = cursor.fetchall()
+        print("All votes in the database:")
+        for vote in all_votes:
+            print(vote)
+
+        return {"message": "Vote recorded successfully."}
+    else:
+        # Print the vote(s) found with the given voter_id
+        print(f"Votes with voter_id {voter_id}:")
+        for vote in votes_with_id:
+            print(vote)
+
+        return {"message": "Vote recorded successfully."}
+
+
+@app.post("/validate")
+async def vote(voter_id: int):
+    print(voter_id)
+
+    # Fetch vote(s) from the database with the given voter_id
+    cursor.execute("SELECT * FROM votes WHERE voter_id = ?", (voter_id,))
+    votes_with_id = cursor.fetchall()
+
+    # Check if any votes were found with the given voter_id
+    if not votes_with_id:
+        # No votes found with the given voter_id
+        return {"message": "No vote found."}
+
+    # Print the vote(s) found with the given voter_id
+    print(f"Votes with voter_id {voter_id}:")
+    for vote in votes_with_id:
         print(vote)
 
-    return {"message": "Vote recorded successfully."}
+    return {"message": "Vote found successfully."}
