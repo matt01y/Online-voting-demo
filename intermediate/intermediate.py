@@ -2,6 +2,7 @@ import json
 import sqlite3
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+import requests
 
 import random
 
@@ -12,9 +13,7 @@ def create_sqlite_database(filename):
     conn = None
     sql_statements = [ 
         """CREATE TABLE IF NOT EXISTS votes
-                (voter_id INTEGER PRIMARY KEY,
-                name TEXT,
-                party TEXT);"""]
+                (voter_id INTEGER PRIMARY KEY);"""]
     try:
         conn = sqlite3.connect(filename)
         cursor = conn.cursor()
@@ -29,6 +28,7 @@ def create_sqlite_database(filename):
 # Create a SQLite database connection
 conn = create_sqlite_database('db.sqlite')
 cursor = conn.cursor()
+backend_public = requests.get("http://127.0.0.1:7879/public_key").json()['public_key']
 
 class Vote(BaseModel):
     name: str | None
@@ -47,7 +47,7 @@ async def init():
 
     return {
         "auth_server": {"host": "127.0.0.1", "port": 7878},
-        "backend_key": "",
+        "backend_key": backend_public,
         "parties": parties
     }
 
@@ -64,7 +64,7 @@ async def vote(user_vote: Vote):
 
     voter_id = random.randint(0,999_999_999) # TODO make this the real voter id i need to get in
 
-        # Fetch vote(s) from the database with the given voter_id
+    # Fetch vote(s) from the database with the given voter_id
     cursor.execute("SELECT * FROM votes WHERE voter_id = ?", (voter_id,))
     votes_with_id = cursor.fetchall()
 
@@ -72,7 +72,7 @@ async def vote(user_vote: Vote):
     if not votes_with_id:
         # No votes found with the given voter_id
         # Insert the vote into the database
-        cursor.execute("INSERT INTO votes (voter_id, name, party) VALUES (?, ?, ?)", (voter_id, user_vote.name, user_vote.party))
+        cursor.execute("INSERT INTO votes (voter_id) VALUES (?)", (voter_id,))
         conn.commit()
 
         # Fetch all votes from the database
