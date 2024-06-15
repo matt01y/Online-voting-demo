@@ -1,0 +1,20 @@
+{
+  "politicians": [
+    {
+      "name": "Bart De Wever",
+      "party": "NVA"
+    },
+    {
+      "name": "Samdy Mahdi",
+      "party": "CD&V"
+    },
+    {
+      "name": "Tom Van Grieken",
+      "party": "Vlaams Belang"
+    },
+    {
+      "name": "Alexander De Croo",
+      "party": "OpenVLD"
+    }
+  ]
+}
