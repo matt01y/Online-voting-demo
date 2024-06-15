@@ -1,19 +1,25 @@
+use std::collections::HashMap;
 use std::fs;
-
-use axum::{Json, Router};
-use axum::routing::{get, post};
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
+
+use axum::{Extension, Json, Router};
+use axum::routing::{get, post};
+use tower::ServiceBuilder;
+use tower_http::add_extension::AddExtensionLayer;
 
 const PUB_KEY_FILE: &str = "public_key.asc";
 
 
 #[tokio::main]
 async fn main() {
+    let votes: Arc<Mutex<HashMap<String, HashMap<String, i64>>>> = Arc::new(Mutex::new(HashMap::new()));
     // create a new instance of the application
     let app = Router::new()
         // the route for the public key
         .route("/public_key", get(public_key))
-        .route("/vote", post(vote));
+        .route("/vote", post(vote))
+        .layer(ServiceBuilder::new().layer(AddExtensionLayer::new(votes)));
 
     // start the server
     let listener = tokio::net::TcpListener::bind("0.0.0.0:7879").await.unwrap();
@@ -39,7 +45,22 @@ struct VoteRequest {
     encrypted_vote: String,
 }
 
-async fn vote(Json(VoteRequest { encrypted_vote }): Json<VoteRequest>) {
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+struct VoteNonce {
+    nonce: u64,
+    vote: Vote,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+struct Vote {
+    name: String,
+    party: String,
+}
+
+async fn vote(
+    Extension(votes): Extension<Arc<Mutex<HashMap<String, HashMap<String, i64>>>>>,
+    Json(VoteRequest { encrypted_vote }): Json<VoteRequest>
+) {
     // change it into a normal string
     let encrypted_vote = urlencoding::decode(&encrypted_vote).expect("utf-8").into_owned();
     let cmd  = Command::new("echo")
@@ -63,6 +84,27 @@ async fn vote(Json(VoteRequest { encrypted_vote }): Json<VoteRequest>) {
     // convert the output to a string
     // this is thus the decrypted vote
     let vote = std::str::from_utf8(&encrypted_vote.stdout).unwrap();
+    // parse the vote
+    let vote_n: VoteNonce = serde_json::from_str(vote).expect("Failed to parse vote");
+
+    // add the vote
+    votes.lock().unwrap()
+        // get the party
+        .entry(vote_n.vote.party.clone())
+        // if the party does not exist, create a new hashmap
+        .or_insert(HashMap::new())
+        // get the party member
+        .entry(vote_n.vote.name.clone())
+        // if the party member does not exist, give em 0 votes
+        .or_insert(0);
+
+    // add 1 vote
+    *votes.lock().unwrap()
+        .get_mut(&vote_n.vote.party)
+        .unwrap()
+        .get_mut(&vote_n.vote.name)
+        .unwrap() += 1;
+
     // debug print
-    println!("output: {}", vote);
+    println!("cur_state: {:?}", votes.lock().unwrap());
 }
