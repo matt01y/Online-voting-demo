@@ -87,7 +87,6 @@ async fn login(
 #[derive(serde::Deserialize)]
 struct ValidateVoteRequest {
     voter_id: u64,
-    public_key: String,
 }
 
 #[derive(serde::Serialize)]
@@ -97,27 +96,26 @@ struct ValidateVoterResponse {
 
 #[derive(serde::Serialize)]
 enum ValidateVoterResponseMessage {
-    ValidVoter,
-    InvalidVoter,
+    PublicKey(String),
+    InvalidVoterID,
 }
 
 async fn validate_voter(
     Extension(voters): Extension<Arc<Mutex<Vec<Voter>>>>,
     Json(ValidateVoteRequest {
         voter_id,
-        public_key,
     }): Json<ValidateVoteRequest>,
 ) -> Json<ValidateVoterResponse> {
     let voters = voters.lock().unwrap();
-    // check if voter_id is valid and public_key is correct
+    // check if voter_id is valid
     if let Some(voter) = voters.get(voter_id as usize) {
-        if voter.public_key == public_key {
-            return Json(ValidateVoterResponse {
-                message: ValidateVoterResponseMessage::ValidVoter,
-            });
-        }
+        // send this voter's public key
+        return Json(ValidateVoterResponse {
+            message: ValidateVoterResponseMessage::PublicKey(voter.public_key.clone()),
+        });
     }
+    // Let em know that the voter_id is invalid
     Json(ValidateVoterResponse {
-        message: ValidateVoterResponseMessage::InvalidVoter,
+        message: ValidateVoterResponseMessage::InvalidVoterID,
     })
 }

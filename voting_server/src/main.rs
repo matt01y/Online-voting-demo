@@ -18,6 +18,9 @@ async fn main() {
     let app = Router::new()
         // the route for the public key
         .route("/public_key", get(public_key))
+        // the route to see the current votes
+        .route("/votes", get(get_votes))
+        // the route to vote
         .route("/vote", post(vote))
         .layer(ServiceBuilder::new().layer(AddExtensionLayer::new(votes)));
 
@@ -59,11 +62,11 @@ struct Vote {
 
 async fn vote(
     Extension(votes): Extension<Arc<Mutex<HashMap<String, HashMap<String, i64>>>>>,
-    Json(VoteRequest { encrypted_vote }): Json<VoteRequest>
+    Json(VoteRequest { encrypted_vote }): Json<VoteRequest>,
 ) {
     // change it into a normal string
     let encrypted_vote = urlencoding::decode(&encrypted_vote).expect("utf-8").into_owned();
-    let cmd  = Command::new("echo")
+    let cmd = Command::new("echo")
         .arg(encrypted_vote)
         // pipe this output into the gpg command
         .stdout(Stdio::piped())
@@ -88,23 +91,20 @@ async fn vote(
     let vote_n: VoteNonce = serde_json::from_str(vote).expect("Failed to parse vote");
 
     // add the vote
-    votes.lock().unwrap()
+    *votes.lock().unwrap()
         // get the party
-        .entry(vote_n.vote.party.clone())
+        .entry(vote_n.vote.party)
         // if the party does not exist, create a new hashmap
         .or_insert(HashMap::new())
         // get the party member
-        .entry(vote_n.vote.name.clone())
+        .entry(vote_n.vote.name)
         // if the party member does not exist, give em 0 votes
-        .or_insert(0);
+        // then add 1 vote whatever the case
+        .or_insert(0) += 1;
+}
 
-    // add 1 vote
-    *votes.lock().unwrap()
-        .get_mut(&vote_n.vote.party)
-        .unwrap()
-        .get_mut(&vote_n.vote.name)
-        .unwrap() += 1;
-
-    // debug print
-    println!("cur_state: {:?}", votes.lock().unwrap());
+async fn get_votes(
+    Extension(votes): Extension<Arc<Mutex<HashMap<String, HashMap<String, i64>>>>>,
+) -> Json<HashMap<String, HashMap<String, i64>>> {
+    Json(votes.lock().unwrap().clone())
 }

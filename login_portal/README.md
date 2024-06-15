@@ -40,19 +40,19 @@ If the passed data is in a wrong format, the response will be a `422` error.
 ### Intermediate
 The intermediate can check if a vote is valid with the following request:
 ```bash
-curl --data '{"voter_id":0, "public_key":"aaaaa"}' --header 'Content-Type: application/json' --request GET 127.0.0.1:7878/validate_voter
+curl --data '{"voter_id":0}' --header 'Content-Type: application/json' --request GET 127.0.0.1:7878/validate_voter
 ```
 
 The response will either be:
 ```json
 {
-    "message": "ValidVoter"
+    "message": {"Publickey":"aaaaa"}
 }
 ```
 or
 ```json
 {
-    "message": "InvalidVoter"
+    "message": "InvalidVoterID"
 }
 ```
 
