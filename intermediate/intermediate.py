@@ -31,8 +31,8 @@ cursor = conn.cursor()
 backend_public = requests.get("http://127.0.0.1:7879/public_key").json()['public_key']
 
 class Vote(BaseModel):
-    name: str | None
-    party: str | None
+    vote_id: int | None
+    signed: str | None
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -54,15 +54,8 @@ async def init():
 
 @app.post("/vote")
 async def vote(user_vote: Vote):
-    if user_vote.party is None and user_vote.name is not None:
-        raise HTTPException(status_code=422, detail="Invalid party. Party cannot be None when name is provided")
 
-    if user_vote.party is not None and user_vote.name is None:
-        raise HTTPException(status_code=422, detail="Invalid name. Name cannot be None when party is provided")
-
-    print(user_vote)
-
-    voter_id = random.randint(0,999_999_999) # TODO make this the real voter id i need to get in
+    voter_id = user_vote.vote_id
 
     # Fetch vote(s) from the database with the given voter_id
     cursor.execute("SELECT * FROM votes WHERE voter_id = ?", (voter_id,))
@@ -82,7 +75,7 @@ async def vote(user_vote: Vote):
         for vote in all_votes:
             print(vote)
 
-        return {"message": "Vote recorded successfully."}
+        return {"message": "New vote recorded successfully."}
     else:
         # Print the vote(s) found with the given voter_id
         print(f"Votes with voter_id {voter_id}:")

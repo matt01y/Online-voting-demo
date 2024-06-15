@@ -80,10 +80,10 @@ def send_vote(vote_id: int, vote: tuple[str, str] | None, address: str, user_key
                             keyid=user_key.fingerprint).data.decode("utf-8")
     response = req.post(f"{address}/vote", json={"vote_id": vote_id, "signed": signed})
 
-    print({"vote_id": vote_id, "signed": signed})
-
     if response.status_code != 200:
-        print(f"[ERROR]: {response.status_code} - {response.text}")
+        print(f"[ERROR]: {response.status_code}")
+
+    print(response.json()["message"])
 
 
 if __name__ == '__main__':
@@ -98,20 +98,23 @@ if __name__ == '__main__':
     # take the first entry as for proof of concept, in a real application, load balancing will be performed
     config = load_config("./client_config.json")
     intermediary = config["intermediaries"][0]
-    backend_key = gpg.import_keys(config["backend_key_tmp"]).results[0]
-
-    key_gen_data = gpg.gen_key_input(key_type="RSA", key_length=2048, no_protection=True)
-    key = gpg.gen_key(key_gen_data)
-
-    user_data = {
-        "e_id": "BE-63963937393",
-        "public_key": gpg.export_keys(key.fingerprint)
-    }
 
     # contact the intermediary, result will be list of parties and people, and ip of auth server
     # the public keys of the backend server and intermediary server
     intermediary_address = f"http://{intermediary['host']}:{intermediary['port']}"
     data = init_connection(intermediary_address)
+
+    backend_key = gpg.import_keys(data["backend_key"]).results[0]
+
+    key_gen_data = gpg.gen_key_input(key_type="RSA", key_length=2048, no_protection=True)
+    key = gpg.gen_key(key_gen_data)
+
+    user_data = {
+        "e_id": "BE-63963937392",
+        "public_key": gpg.export_keys(key.fingerprint)
+    }
+
+
     voter_id = authenticate(data["auth_server"]["host"], data["auth_server"]["port"], user_data)
 
     user_vote = user_vote(data["parties"])
