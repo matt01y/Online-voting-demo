@@ -4,7 +4,7 @@ LaTeX source code and schematics for the report.
 
 ## Building PDF
 
-You can build to source files into a PDF my running `make` in this directory. The Makefile has the following dependencies:
+You can build to source files into a PDF by running `make` in this directory. The Makefile has the following dependencies:
 
 - `texlive` (You'll want the full scheme)
 - `biber` to handle references and citations
