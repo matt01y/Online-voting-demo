@@ -2,11 +2,10 @@ import json
 import os
 import shutil
 import sqlite3
-from http.client import HTTPException
 
 import gnupg
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 app = FastAPI(title="Intermediary server")
@@ -82,15 +81,15 @@ async def vote(user_vote: Vote):
     if not votes_with_id:
         # No votes found with the given voter_id
         # Insert the vote into the database
-        # cursor.execute("INSERT INTO votes (voter_id) VALUES (?)", (voter_id,))
-        # conn.commit()
+        cursor.execute("INSERT INTO votes (voter_id) VALUES (?)", (voter_id,))
+        conn.commit()
 
         # Fetch all votes from the database
-        # cursor.execute("SELECT * FROM votes")
-        # all_votes = cursor.fetchall()
-        # print("All votes in the database:")
-        # for vote in all_votes:
-        #     print(vote)
+        cursor.execute("SELECT * FROM votes")
+        all_votes = cursor.fetchall()
+        print("All votes in the database:")
+        for vote in all_votes:
+            print(vote)
 
         public_key = requests.get("http://localhost:7878/validate_voter", headers={"Content-Type": "application/json"},
                                   data=json.dumps({"voter_id": voter_id})).json()["message"]["PublicKey"]
@@ -100,7 +99,7 @@ async def vote(user_vote: Vote):
         unsigned = gpg.verify(user_vote.signed, extra_args=["-o", "-"])
 
         if not unsigned.valid or (imported['fingerprint'] != unsigned.fingerprint):
-            return HTTPException(status_code=405, detail="Not allowed: Invalid public key")
+            raise HTTPException(status_code=405, detail="Not allowed: Invalid public key")
 
         _ = requests.post("http://127.0.0.1:7879/vote", json={"encrypted_vote": user_vote.plain})
 

@@ -23,12 +23,6 @@ def init_connection(address: str) -> dict:
 
 def authenticate(host: str, port: int, auth_data: dict[str, str]) -> int | None:
     auth = req.post(f"http://{host}:{port}/login", json=auth_data).json()
-
-    # todo: remove comment
-    # if "success" in auth["message"].lower():
-    #     return auth["voter_id"]
-
-    # todo: remove
     return auth["voter_id"]
 
 
@@ -86,13 +80,18 @@ def send_vote(vote_id: int, vote: tuple[str, str] | None, address: str, user_key
                             "signed": signed})
 
     if response.status_code != 200:
-        print(f"[ERROR]: {response.status_code}")
+        print(f"[ERROR]: {response.status_code} - {response.json()['detail']}")
+        return
 
     print(response.json()["message"])
 
 
 if __name__ == '__main__':
-    path = os.path.join(os.getcwd(), "tempkeys")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--eid", type=str, default="BE-63963937392")
+    args = parser.parse_args()
+
+    path = os.path.join(os.getcwd(), args.eid)
 
     if os.path.exists(path):
         shutil.rmtree(path)
@@ -114,9 +113,6 @@ if __name__ == '__main__':
     key_gen_data = gpg.gen_key_input(key_type="RSA", key_length=2048, no_protection=True)
     key = gpg.gen_key(key_gen_data)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--eid", type=str, default="BE-63963937392")
-    args = parser.parse_args()
     user_data = {
         "e_id": args.eid,
         "public_key": gpg.export_keys(key.fingerprint)
