@@ -55,6 +55,7 @@ class Vote(BaseModel):
 def shutdown_event():
     # Close the database connection when the application shuts down
     conn.close()
+    os.rmdir(path)
 
 
 @app.get("/init")

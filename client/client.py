@@ -21,9 +21,14 @@ def init_connection(address: str) -> dict:
     }
 
 
-def authenticate(host: str, port: int, auth_data: dict[str, str]) -> int | None:
+def authenticate(host: str, port: int, auth_data: dict[str, str]) -> int:
     auth = req.post(f"http://{host}:{port}/login", json=auth_data).json()
-    return auth["voter_id"]
+    vote_id = auth["voter_id"]
+
+    if vote_id is None:
+        raise AssertionError(f"[ERROR] {auth['message']}")
+
+    return vote_id
 
 
 def load_config(path: str) -> dict:
@@ -86,6 +91,11 @@ def send_vote(vote_id: int, vote: tuple[str, str] | None, address: str, user_key
     print(response.json()["message"])
 
 
+def cleanup(fingerprint, gnu_path, secret=True, passphrase=""):
+    gpg.delete_keys(fingerprint, secret=secret, passphrase=passphrase)
+    shutil.rmtree(gnu_path)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--eid", type=str, default="BE-63963937392")
@@ -118,11 +128,13 @@ if __name__ == '__main__':
         "public_key": gpg.export_keys(key.fingerprint)
     }
 
-    voter_id = authenticate(data["auth_server"]["host"], data["auth_server"]["port"], user_data)
+    try:
+        voter_id = authenticate(data["auth_server"]["host"], data["auth_server"]["port"], user_data)
+    except AssertionError as e:
+        cleanup(key.fingerprint, path)
+        raise e
 
     user_vote = user_vote(data["parties"])
-    # send_vote(voter_id, user_vote, intermediary_address, key, backend_key=data["backend_key"], encryptor=gpg)
-    send_vote(voter_id, user_vote, intermediary_address, key, encryption_key=backend_key, encryptor=gpg)  # temporary
+    send_vote(voter_id, user_vote, intermediary_address, key, encryption_key=backend_key, encryptor=gpg)
 
-    gpg.delete_keys(key.fingerprint, secret=True, passphrase="")
-    shutil.rmtree(path)
+    cleanup(key.fingerprint, path)
