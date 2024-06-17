@@ -117,7 +117,6 @@ if __name__ == '__main__':
         "e_id": args.eid,
         "public_key": gpg.export_keys(key.fingerprint)
     }
-    print(args.eid)
 
     voter_id = authenticate(data["auth_server"]["host"], data["auth_server"]["port"], user_data)
 
