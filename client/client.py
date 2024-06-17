@@ -1,10 +1,11 @@
-import random
-
-import requests as req
+import argparse
 import json
-import gnupg
 import os
+import random
 import shutil
+
+import gnupg
+import requests as req
 
 
 def init_connection(address: str) -> dict:
@@ -109,11 +110,14 @@ if __name__ == '__main__':
     key_gen_data = gpg.gen_key_input(key_type="RSA", key_length=2048, no_protection=True)
     key = gpg.gen_key(key_gen_data)
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--eid", type=str, default="BE-63963937392")
+    args = parser.parse_args()
     user_data = {
-        "e_id": "BE-63963937392",
+        "e_id": args.eid,
         "public_key": gpg.export_keys(key.fingerprint)
     }
-
+    print(args.eid)
 
     voter_id = authenticate(data["auth_server"]["host"], data["auth_server"]["port"], user_data)
 
