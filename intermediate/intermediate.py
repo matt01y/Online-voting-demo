@@ -3,10 +3,13 @@ import sqlite3
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import requests
+import gnupg
 
 import random
 
 app = FastAPI(title="Intermediary server")
+
+gpg = gnupg.GPG()
 
 def create_sqlite_database(filename):
     """ create a database connection to an SQLite database """
@@ -74,6 +77,15 @@ async def vote(user_vote: Vote):
         print("All votes in the database:")
         for vote in all_votes:
             print(vote)
+
+        reqw = requests.get("http://localhost:7878/validate_voter", headers={"Content-Type": "application/json"}, data=json.dumps({"voter_id": voter_id})).json()["message"]["PublicKey"]
+        print("oi")
+        jeff = gpg.import_keys(reqw).results[0]
+        print(jeff)
+        melinda = gpg.verify(user_vote.signed, keyid=jeff["fingerprint"], extra_args=["-o", "-"])
+
+        print("oi")
+        print(melinda.status)
 
         return {"message": "New vote recorded successfully."}
     else:
