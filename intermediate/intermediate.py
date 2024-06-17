@@ -1,20 +1,29 @@
 import json
+import os
+import shutil
 import sqlite3
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import requests
-import gnupg
 
-import random
+import gnupg
+import requests
+from fastapi import FastAPI
+from pydantic import BaseModel
 
 app = FastAPI(title="Intermediary server")
 
-gpg = gnupg.GPG()
+path = os.path.join(os.getcwd(), "tempkeys")
+
+if os.path.exists(path):
+    shutil.rmtree(path)
+
+os.mkdir(path)
+
+gpg = gnupg.GPG(gnupghome=os.path.join(os.getcwd(), "tempkeys"))
+
 
 def create_sqlite_database(filename):
     """ create a database connection to an SQLite database """
     conn = None
-    sql_statements = [ 
+    sql_statements = [
         """CREATE TABLE IF NOT EXISTS votes
                 (voter_id INTEGER PRIMARY KEY);"""]
     try:
@@ -28,14 +37,18 @@ def create_sqlite_database(filename):
         print(f"Error occured: {e}")
     return conn
 
+
 # Create a SQLite database connection
 conn = create_sqlite_database('db.sqlite')
 cursor = conn.cursor()
 backend_public = requests.get("http://127.0.0.1:7879/public_key").json()['public_key']
 
+
 class Vote(BaseModel):
-    vote_id: int | None
-    signed: str | None
+    vote_id: int
+    plain: str
+    signed: str
+
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -57,7 +70,6 @@ async def init():
 
 @app.post("/vote")
 async def vote(user_vote: Vote):
-
     voter_id = user_vote.vote_id
 
     # Fetch vote(s) from the database with the given voter_id
@@ -78,14 +90,10 @@ async def vote(user_vote: Vote):
         for vote in all_votes:
             print(vote)
 
-        reqw = requests.get("http://localhost:7878/validate_voter", headers={"Content-Type": "application/json"}, data=json.dumps({"voter_id": voter_id})).json()["message"]["PublicKey"]
-        print("oi")
-        jeff = gpg.import_keys(reqw).results[0]
-        print(jeff)
-        melinda = gpg.verify(user_vote.signed, keyid=jeff["fingerprint"], extra_args=["-o", "-"])
+        # public_key = requests.get("http://localhost:7878/validate_voter", headers={"Content-Type": "application/json"},
+        #                           data=json.dumps({"voter_id": voter_id})).json()["message"]["PublicKey"]
 
-        print("oi")
-        print(melinda.status)
+        _ = requests.post("http://127.0.0.1:7879/vote", json={"encrypted_vote": user_vote.plain})
 
         return {"message": "New vote recorded successfully."}
     else:
