@@ -92,15 +92,19 @@ async def vote(user_vote: Vote):
         for vote in all_votes:
             print(vote)
 
-        public_key = requests.get("http://localhost:7878/validate_voter", headers={"Content-Type": "application/json"},
-                                  data=json.dumps({"voter_id": voter_id})).json()["message"]["PublicKey"]
+        try:
+            public_key = requests.get("http://localhost:7878/validate_voter", headers={"Content-Type": "application/json"},
+                                      data=json.dumps({"voter_id": voter_id})).json()["message"]["PublicKey"]
+        except Exception as e:
+            return {"message": "Not allowed: Invalid"}
 
         imported = gpg.import_keys(public_key).results[0]
 
         unsigned = gpg.verify(user_vote.signed, extra_args=["-o", "-"])
 
         if not unsigned.valid or (imported['fingerprint'] != unsigned.fingerprint):
-            raise HTTPException(status_code=405, detail="Not allowed: Invalid public key")
+            # raise HTTPException(status_code=405, detail="Not allowed: Invalid public key")
+            return {"message": "Not allowed: Invalid public key"}
 
         _ = requests.post("http://127.0.0.1:7879/vote", json={"encrypted_vote": user_vote.plain})
 
