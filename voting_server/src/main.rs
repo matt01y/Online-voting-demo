@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -14,6 +14,7 @@ const PUB_KEY_FILE: &str = "public_key.asc";
 #[tokio::main]
 async fn main() {
     let votes: Arc<Mutex<HashMap<String, HashMap<String, i64>>>> = Arc::new(Mutex::new(HashMap::new()));
+    let nonces: Arc<Mutex<HashSet<u64>>> = Arc::new(Mutex::new(HashSet::new()));
     // create a new instance of the application
     let app = Router::new()
         // the route for the public key
@@ -22,7 +23,8 @@ async fn main() {
         .route("/votes", get(get_votes))
         // the route to vote
         .route("/vote", post(vote))
-        .layer(ServiceBuilder::new().layer(AddExtensionLayer::new(votes)));
+        .layer(ServiceBuilder::new().layer(AddExtensionLayer::new(votes)))
+        .layer(ServiceBuilder::new().layer(AddExtensionLayer::new(nonces)));
 
     // start the server
     let listener = tokio::net::TcpListener::bind("0.0.0.0:7879").await.unwrap();
@@ -62,6 +64,7 @@ struct Vote {
 
 async fn vote(
     Extension(votes): Extension<Arc<Mutex<HashMap<String, HashMap<String, i64>>>>>,
+    Extension(nonces): Extension<Arc<Mutex<HashSet<u64>>>>,
     Json(VoteRequest { encrypted_vote }): Json<VoteRequest>,
 ) {
     // change it into a normal string
@@ -89,6 +92,11 @@ async fn vote(
     let vote = std::str::from_utf8(&encrypted_vote.stdout).unwrap();
     // parse the vote
     let vote_n: VoteNonce = serde_json::from_str(vote).expect("Failed to parse vote");
+
+    // check if the nonce is already used
+    if !nonces.lock().unwrap().insert(vote_n.nonce) {
+        return;
+    }
 
     // add the vote
     *votes.lock().unwrap()
